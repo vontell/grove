@@ -46,8 +46,9 @@ def or_all(p, qubits):
     for qubit in qubits:
         p.inst(CNOT(qubit, scratch_bit))
     return scratch_bit
-# assume qubits are ordered from most significant to least significant
 
+# Using the basic algorithm found here: https://s2.smu.edu/~mitch/class/8381/papers/MMD-DAC03.pdf
+# assume qubits are ordered from most significant to least significant
 def add_reversible_function(p, f, qubits):
     """
     Add a gate that simulates a reversible function to program p

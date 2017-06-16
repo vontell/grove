@@ -93,7 +93,6 @@ def test_or_all():
 
     print result
 
-# Using the basic algorithm found here: https://s2.smu.edu/~mitch/class/8381/papers/MMD-DAC03.pdf
 def test_add_reversible_function(x):
     p = pq.Program()
 
