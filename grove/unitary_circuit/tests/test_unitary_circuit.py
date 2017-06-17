@@ -162,7 +162,32 @@ def test_four_bit_add_reversible_function(x):
 
     assert f(x) == y
 
+def test_get_one_qubit_gate_params():
+    theta = np.pi/6
+    x_rot = np.array([[np.cos(theta/2), -1j*np.sin(theta/2)],
+                                                  [-1j*np.sin(theta/2), np.cos(theta/2)]])
+    phase = np.array([[1, 0], [0, 1j]])
+    print get_one_qubit_gate_params(phase)
+
+def test_better_n_qubit_control():
+    p = pq.Program()
+
+    controls = [p.alloc() for _ in xrange(3)]
+    target = p.alloc()
+
+    #p.inst(X(controls[0]))
+    #p.inst(X(controls[1]))
+    #p.inst(X(controls[2]))
+    p.inst(X(target))
+    p += better_n_qubit_control(controls, target, np.array([[0, 1], [1, 0]]))
+    print p.out()
+    cxn = Connection()
+    results = cxn.run_and_measure(p, [q.index() for q in controls + [target]])
+    print results
 
 if __name__=='__main__':
+    test_better_n_qubit_control()
+    """
     for x in range(2**4):
         test_four_bit_add_reversible_function(x)
+    """

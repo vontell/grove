@@ -1,6 +1,11 @@
-from pyquil.gates import X, NOT, CNOT, CCNOT
+from pyquil.gates import *
 from grove.grover.grover import n_qubit_control
 import numpy as np
+from scipy.linalg import sqrtm
+import pyquil.quil as pq
+
+STANDARD_GATE_NAMES = STANDARD_GATES.keys()
+
 
 def add_nand(p, qubit1, qubit2):
     scratch_bit = p.alloc()
@@ -129,6 +134,89 @@ def add_reversible_function(p, f, qubits):
     #print "\n".join(debug[::-1])
     return p
 
+############### Circuits from single bit unitaries and controlled unitaries ######################
+# see vlsicad.eecs.umich.edu/Quantum/EECS598/lec/7a.ppt for more information                     #
+##################################################################################################
+def get_one_qubit_gate_params(U):
+    """
+    :param U: a 2x2 unitary matrix
+    :return: d_phase, alpha, theta, beta
+    """
+    d = np.sqrt(np.linalg.det(U)+0j) # hacky way to make sure inside is complex to allow for complex sqrt
+    U = U/d
+    d_phase = np.angle(d)
+    alpha = np.angle(U[0,0]) - np.angle(U[1,0])
+    beta = np.angle(U[0,0]) + np.angle(U[1,0])
+    theta = 2*np.arctan2(np.abs(U[1, 0]), np.abs(U[0, 0]))
+    return d_phase, alpha, beta, theta
+
+def get_one_qubit_gate_from_unitary_params(params, qubit):
+    p = pq.Program()
+    d_phase, alpha, beta, theta = params
+    p.inst(PHASE(d_phase, qubit))\
+        .inst(RZ(alpha, qubit))\
+        .inst(RY(theta, qubit))\
+        .inst(RZ(beta, qubit))
+    return p
+
+def get_one_qubit_controlled_from_unitary_params(params, control, target):
+    p = pq.Program()
+    d_phase, alpha, beta, theta = params
+    p.inst(PHASE(d_phase, control))\
+        .inst(RZ(alpha, target))\
+        .inst(RY(theta/2, target))\
+        .inst(CNOT(control, target))\
+        .inst(RY(-theta/2, target))\
+        .inst(RZ(-(beta+alpha)/2, target))\
+        .inst(CNOT(control, target))\
+        .inst(RZ((beta-alpha)/2, target))
+    return p
+
+def better_n_qubit_control(controls, target, u):
+    """
+    Returns a controlled u gate with n-1 controls.
+
+    Uses a number of gates quadratic in the number of qubits without defining new gates.
+
+    :param controls: The indices of the qubits to condition the gate on.
+    :param target: The index of the target of the gate.
+    :param u: The unitary gate to be controlled, given as a numpy array.
+    :return: The controlled gate.
+    """
+    def controlled_program_builder(controls, target, target_gate):
+
+        p = pq.Program()
+
+        params = get_one_qubit_gate_params(target_gate)
+
+        sqrt_params = get_one_qubit_gate_params(sqrtm(target_gate))
+
+        adj_sqrt_params = get_one_qubit_gate_params(np.conj(sqrtm(target_gate)).T)
+        if len(controls) == 1:
+            # controlled U
+            p += get_one_qubit_controlled_from_unitary_params(params, controls[0], target)
+        else:
+            # controlled V
+            p += get_one_qubit_controlled_from_unitary_params(sqrt_params, controls[-1], target)
+            many_toff = controlled_program_builder(controls[:-1], controls[-1], np.array([[0, 1], [1, 0]]))
+            p += many_toff
+
+            # controlled V_adj
+            p += get_one_qubit_controlled_from_unitary_params(adj_sqrt_params, controls[-1], target)
+
+            p += many_toff
+            many_root_toff = controlled_program_builder(controls[:-1], target, sqrtm(target_gate))
+            p += many_root_toff
+
+        return p
+
+    p = controlled_program_builder(controls, target, u)
+    return p
+
+############################################################################################################################################################
+# Warning, very slow and qubit intensive! Will refactor to use reversible function
+# via forcing f to be reversible w/ scratch bits.
+# TODO
 def add_function(p, f, qubits, num_range_bits):
     outbits = []
     num_qubits = len(qubits)
