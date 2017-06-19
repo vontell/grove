@@ -5,7 +5,7 @@ from pyquil.gates import *
 import numpy as np
 from pyquil.gates import CCNOT
 from grove.unitary_circuit.utils import *
-from pyquil.forest import Connection
+from pyquil.api import SyncConnection
 
 def try_and_or():
     p = pq.Program()
@@ -15,7 +15,7 @@ def try_and_or():
     sb = add_or(p, q1, q2)
     print p.out()
 
-    cxn = Connection()
+    cxn = SyncConnection()
     result = cxn.run_and_measure(p, [q.index() for q in [q1, q2, sb]])
     print result
 
@@ -31,7 +31,7 @@ def test_two_bit_to_one_bit():
     print p.out()
     print len(p.get_qubits())
 
-    cxn = Connection()
+    cxn = SyncConnection()
     result = cxn.run_and_measure(p, [q.index() for q in outbits])
     print result
 
@@ -53,7 +53,7 @@ def test_three_to_three():
     print p.out()
     print len(p.get_qubits())
 
-    # cxn = Connection()
+    # cxn = SyncConnection()
     # result = cxn.run_and_measure(p, [q.index() for q in outbits])
     # print result
 
@@ -70,7 +70,7 @@ def test_and_all():
 
     print p.out()
 
-    cxn = Connection()
+    cxn = SyncConnection()
     result = cxn.run_and_measure(p, [sb.index()])
 
     print p.get_qubits()
@@ -88,7 +88,7 @@ def test_or_all():
     print p.out()
     print p.get_qubits()
 
-    cxn = Connection()
+    cxn = SyncConnection()
     result = cxn.run_and_measure(p, [sb.index()])
 
     print result
@@ -113,7 +113,7 @@ def test_add_reversible_function(x):
     add_reversible_function(p, f, qubits)
     p.out()
 
-    cxn = Connection()
+    cxn = SyncConnection()
     result = cxn.run_and_measure(p, [q.index() for q in qubits])
 
     y = reduce(lambda prev, next: (prev << 1) + next, result[0], 0)
@@ -150,7 +150,7 @@ def test_four_bit_add_reversible_function(x):
     add_reversible_function(p, f, qubits)
     p.out()
 
-    cxn = Connection()
+    cxn = SyncConnection()
     result = cxn.run_and_measure(p, [q.index() for q in qubits])
 
     y = reduce(lambda prev, next: (prev << 1) + next, result[0], 0)
@@ -175,13 +175,13 @@ def test_better_n_qubit_control():
     controls = [p.alloc() for _ in xrange(3)]
     target = p.alloc()
 
-    #p.inst(X(controls[0]))
-    #p.inst(X(controls[1]))
+    p.inst(X(controls[0]))
+    p.inst(X(controls[1]))
     #p.inst(X(controls[2]))
     p.inst(X(target))
     p += better_n_qubit_control(controls, target, np.array([[0, 1], [1, 0]]))
     print p.out()
-    cxn = Connection()
+    cxn = SyncConnection()
     results = cxn.run_and_measure(p, [q.index() for q in controls + [target]])
     print results
 
